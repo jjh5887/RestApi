@@ -1,6 +1,7 @@
 package com.example.demorestapi.events;
 
 
+import com.example.demorestapi.common.ErrorResource;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.hateoas.Link;
@@ -33,13 +34,13 @@ public class EventController {
     public ResponseEntity createEvent(@RequestBody @Valid EventDto eventDto, Errors errors){ //Errors 는 @Valid 바로 옆에 있어야
         // NotEmpty NotMull Min(0) 에러 검증
         if (errors.hasErrors()){
-            return ResponseEntity.badRequest().body(errors);
+            return badRequest(errors);
         }
 
         // Custom 에러 검증  ex) 이벤트 종료시간이 접수 시간보다 빠른지
-
+        eventValidator.validate(eventDto, errors);
         if (errors.hasErrors()) {
-            return ResponseEntity.badRequest().body(errors);
+            return badRequest(errors);
         }
 
         Event event = this.modelMapper.map(eventDto, Event.class);
@@ -54,6 +55,9 @@ public class EventController {
         return ResponseEntity.created(uri).body(eventResource);
     }
 
+    private ResponseEntity badRequest(Errors errors) {
+        return ResponseEntity.badRequest().body(new ErrorResource(errors));
+    }
 
 
     // EventDto를 이용한 입력값 제한하기 -> EventDto 클래스에 있는 데이터 외에는 다 무시

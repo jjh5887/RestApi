@@ -12,6 +12,7 @@ import java.io.IOException;
 public class ErrorsSerializer extends JsonSerializer<Errors> {
     @Override
     public void serialize(Errors errors, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
+        jsonGenerator.writeFieldName("errors"); // spring boot 2.3 부터 Array 부터 만드는 것을 허용하지 않음
         jsonGenerator.writeStartArray();
         // 필드 에러
         errors.getFieldErrors().forEach(e -> {
