@@ -4,17 +4,22 @@ package com.example.demorestapi.events;
 import com.example.demorestapi.common.ErrorResource;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.MediaTypes;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
+
 import javax.validation.Valid;
 import java.net.URI;
+import java.util.Optional;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 
@@ -31,9 +36,9 @@ public class EventController {
 
 
     @PostMapping
-    public ResponseEntity createEvent(@RequestBody @Valid EventDto eventDto, Errors errors){ //Errors 는 @Valid 바로 옆에 있어야
+    public ResponseEntity createEvent(@RequestBody @Valid EventDto eventDto, Errors errors) { //Errors 는 @Valid 바로 옆에 있어야
         // NotEmpty NotMull Min(0) 에러 검증
-        if (errors.hasErrors()){
+        if (errors.hasErrors()) {
             return badRequest(errors);
         }
 
@@ -55,8 +60,57 @@ public class EventController {
         return ResponseEntity.created(uri).body(eventResource);
     }
 
+    @GetMapping
+    public ResponseEntity queryEvents(Pageable pageable, PagedResourcesAssembler<Event> assembler) {
+        Page<Event> all = this.eventRepository.findAll(pageable);
+        PagedModel<EntityModel<Event>> entityModels = assembler.toModel(all, e -> new EventResource(e));
+        entityModels.add(new Link("/docs/index.html#resources-events-list").withRel("profile"));
+        return ResponseEntity.ok(entityModels);
+    }
+
     private ResponseEntity badRequest(Errors errors) {
         return ResponseEntity.badRequest().body(new ErrorResource(errors));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity getEvent(@PathVariable Integer id) {
+        Optional<Event> byId = this.eventRepository.findById(id);
+        if (byId.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Event event = byId.get();
+        EventResource body = new EventResource(event);
+        body.add(new Link("/docs/index.html#resources-events-get").withRel("profile"));
+        return ResponseEntity.ok(body);
+
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity updateEvent(@PathVariable Integer id,
+                                      @RequestBody @Valid EventDto eventDto,
+                                      Errors errors) {
+        Optional<Event> byId = eventRepository.findById(id);
+        if (byId.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (errors.hasErrors()) {
+            return badRequest(errors);
+        }
+
+        this.eventValidator.validate(eventDto, errors);
+        if (errors.hasErrors()) {
+            return badRequest(errors);
+        }
+
+        Event existingEvent = byId.get();
+        modelMapper.map(eventDto, existingEvent);
+        Event savedEvent = this.eventRepository.save(existingEvent);
+
+        EventResource eventResource = new EventResource(savedEvent);
+        eventResource.add(new Link("/docs/index.html#resources-events-update").withRel("profile"));
+        return ResponseEntity.ok(eventResource);
     }
 
 
@@ -70,7 +124,6 @@ public class EventController {
 //        URI uri = linkTo(EventController.class).slash(newEvent.getId()).toUri();
 //        return ResponseEntity.created(uri).body(event);
 //    }
-
 
 
 }
