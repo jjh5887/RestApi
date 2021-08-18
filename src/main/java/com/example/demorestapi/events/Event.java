@@ -1,5 +1,6 @@
 package com.example.demorestapi.events;
 
+import com.example.demorestapi.accounts.Account;
 import lombok.*;
 
 import javax.persistence.*;
@@ -28,6 +29,8 @@ public class Event {
     private boolean offline;
     @Enumerated(EnumType.STRING)
     private EventStatus eventStatus;
+    @ManyToOne
+    private Account account;
 
     public void update() {
         eventStatus = EventStatus.DRAFT;
