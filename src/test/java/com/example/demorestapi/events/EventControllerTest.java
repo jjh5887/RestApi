@@ -33,7 +33,7 @@ public class EventControllerTest extends BaseControllerTest {
     @Autowired
     private WebApplicationContext wac;
 
-    //    @Before
+//        @Before
     public void setup() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(wac)
                 .addFilters(new CharacterEncodingFilter("UTF-8", true))  // 필터 추가
@@ -103,7 +103,7 @@ public class EventControllerTest extends BaseControllerTest {
                                 headerWithName(HttpHeaders.LOCATION).description("response header location"),
                                 headerWithName(HttpHeaders.CONTENT_TYPE).description("response header content type")
                         ),
-                        responseFields( // relaxedResponseFields() // 일부 문서만 테스트 가능
+                        relaxedResponseFields( // relaxedResponseFields() // 일부 문서만 테스트 가능
                                 fieldWithPath("id").description("identifier of new Event"),
                                 fieldWithPath("name").description("Name of new Event"),
                                 fieldWithPath("description").description("Description of new Event"),
