@@ -3,6 +3,7 @@ package com.example.demorestapi.config;
 import com.example.demorestapi.accounts.Account;
 import com.example.demorestapi.accounts.AccountRole;
 import com.example.demorestapi.accounts.AccountService;
+import com.example.demorestapi.common.AppProperties;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
@@ -33,14 +34,24 @@ public class AppConfig {
             @Autowired
             AccountService accountService;
 
+            @Autowired
+            AppProperties appProperties;
+
             @Override
             public void run(ApplicationArguments args) throws Exception {
                 Account kwonho = Account.builder()
-                        .email("jjh5887@email.com")
-                        .password("kwonho")
-                        .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
+                        .email(appProperties.getUserUsername())
+                        .password(appProperties.getUserPassword())
+                        .roles(Set.of(AccountRole.USER))
                         .build();
                 accountService.saveAccount(kwonho);
+
+                Account admin = Account.builder()
+                        .email(appProperties.getAdminUserName())
+                        .password(appProperties.getAdminPassword())
+                        .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
+                        .build();
+                accountService.saveAccount(admin);
             }
         };
     }

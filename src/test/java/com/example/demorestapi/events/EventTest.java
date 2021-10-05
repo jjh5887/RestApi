@@ -1,7 +1,6 @@
 package com.example.demorestapi.events;
 
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
 import org.junit.Test;
@@ -13,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class EventTest {
 
     @Test
-    public void builder(){
+    public void builder() {
         Event event = Event.builder()
                 .name("Inflearn Spring REST API")
                 .description("REST API development with Spring")
@@ -22,7 +21,7 @@ public class EventTest {
     }
 
     @Test
-    public void javaBean(){
+    public void javaBean() {
         Event event = new Event();
         String name = "Event";
         event.setName(name);
@@ -52,11 +51,11 @@ public class EventTest {
 
     // @Parameters 에 쓸 parameter 함수
     private Object[] parametersForTestFree() {
-        return new Object[] {
-                new Object[] {0, 0, true},
-                new Object[] {2, 0, false},
-                new Object[] {0, 1000, false},
-                new Object[] {100, 200, false}
+        return new Object[]{
+                new Object[]{0, 0, true},
+                new Object[]{2, 0, false},
+                new Object[]{0, 1000, false},
+                new Object[]{100, 200, false}
         };
     }
 
@@ -76,10 +75,10 @@ public class EventTest {
     }
 
     private Object[] parametersForTestOffline() {
-        return new Object[] {
-                new Object[] {"강남", true},
-                new Object[] {null, false},
-                new Object[] {"   ", false}
+        return new Object[]{
+                new Object[]{"강남", true},
+                new Object[]{null, false},
+                new Object[]{"   ", false}
         };
     }
 

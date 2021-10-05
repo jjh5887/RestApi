@@ -4,6 +4,7 @@ import com.example.demorestapi.accounts.Account;
 import com.example.demorestapi.accounts.AccountRepository;
 import com.example.demorestapi.accounts.AccountRole;
 import com.example.demorestapi.accounts.AccountService;
+import com.example.demorestapi.common.AppProperties;
 import com.example.demorestapi.common.BaseControllerTest;
 import com.example.demorestapi.common.TestDescription;
 import org.hamcrest.Matchers;
@@ -48,6 +49,9 @@ public class EventControllerTest extends BaseControllerTest {
 
     @Autowired
     AccountRepository accountRepository;
+
+    @Autowired
+    AppProperties appProperties;
 
     @Before
     public void setUp() {
@@ -152,23 +156,19 @@ public class EventControllerTest extends BaseControllerTest {
 
     private String getAccessToken() throws Exception {
         // Given
-        String username = "123123123@email.com";
-        String password = "kwonho";
         Account kwonho = Account.builder()
-                .email(username)
-                .password(password)
+                .email(appProperties.getUserUsername())
+                .password(appProperties.getUserPassword())
                 .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
                 .build();
 
         accountService.saveAccount(kwonho);
 
-        String clientId = "myApp";
-        String clientSecret = "pass";
 
         ResultActions resultActions = this.mockMvc.perform(post("/oauth/token")
-                .with(httpBasic(clientId, clientSecret))
-                .param("username", username)
-                .param("password", password)
+                .with(httpBasic(appProperties.getClientId(), appProperties.getClientSecret()))
+                .param("username", appProperties.getUserUsername())
+                .param("password", appProperties.getUserPassword())
                 .param("grant_type", "password"));
 
         var responseBody = resultActions.andReturn().getResponse().getContentAsString();
