@@ -1,5 +1,6 @@
 package com.example.demorestapi.events;
 
+import com.example.demorestapi.accounts.Account;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.oauth2.common.util.Jackson2JsonParser;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -40,26 +39,24 @@ public class EventControllerTest extends BaseControllerTest {
 
     @Autowired
     EventRepository eventRepository;
-
+    @Autowired
+    AccountService accountService;
+    @Autowired
+    AccountRepository accountRepository;
+    @Autowired
+    AppProperties appProperties;
     @Autowired
     private WebApplicationContext wac;
 
-    @Autowired
-    AccountService accountService;
-
-    @Autowired
-    AccountRepository accountRepository;
-
-    @Autowired
-    AppProperties appProperties;
-
     @Before
     public void setUp() {
-        accountRepository.deleteAll();
+        // 아래 두개의 순서는 굉장히 중요
+        // event 는 manager 프로퍼티가 account 를 가지고 있어서 account 가 먼저 지워지면 문제 발생
         eventRepository.deleteAll();
+        accountRepository.deleteAll();
     }
 
-    //        @Before
+    //    @Before
     public void setup() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(wac)
                 .addFilters(new CharacterEncodingFilter("UTF-8", true))  // 필터 추가
@@ -79,17 +76,17 @@ public class EventControllerTest extends BaseControllerTest {
                 .basePrice(100)
                 .maxPrice(200)
                 .limitOfEnrollment(100)
-                .location("강남역 D2 스타텁 팩토리")
+                .location("D2")
                 .build();
 
 //        event.setId(10);
 //        Mockito.when(eventRepository.save(event)).thenReturn(event);
 
         mockMvc.perform(post("/api/events")
-                    .header(HttpHeaders.AUTHORIZATION, getAccessToken())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaTypes.HAL_JSON)
-                    .content(objectMapper.writeValueAsString(event)))
+                .header(HttpHeaders.AUTHORIZATION, getAccessToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaTypes.HAL_JSON)
+                .content(objectMapper.writeValueAsString(event)))
                 .andDo(print())
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("id").exists())
@@ -155,15 +152,14 @@ public class EventControllerTest extends BaseControllerTest {
     }
 
     private String getAccessToken() throws Exception {
+        return getAccessToken(true);
+    }
+
+    private String getAccessToken(boolean needToCreateAccount) throws Exception {
         // Given
-        Account kwonho = Account.builder()
-                .email(appProperties.getUserUsername())
-                .password(appProperties.getUserPassword())
-                .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
-                .build();
-
-        accountService.saveAccount(kwonho);
-
+        if (needToCreateAccount) {
+            createAccount();
+        }
 
         ResultActions resultActions = this.mockMvc.perform(post("/oauth/token")
                 .with(httpBasic(appProperties.getClientId(), appProperties.getClientSecret()))
@@ -176,10 +172,19 @@ public class EventControllerTest extends BaseControllerTest {
         return "Bearer " + parser.parseMap(responseBody).get("access_token").toString();
     }
 
+    private Account createAccount() {
+        Account kwonho = Account.builder()
+                .email(appProperties.getUserUsername())
+                .password(appProperties.getUserPassword())
+                .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
+                .build();
+
+        return accountService.saveAccount(kwonho);
+    }
+
     @Test
     public void createEvent_Bad_Request() throws Exception {
         Event event = Event.builder()
-                .id(100)
                 .name("Spring")
                 .description("REST API Development with Spring")
                 .beginEnrollmentDateTime(LocalDateTime.of(2020, 11, 23, 14, 21))
@@ -245,7 +250,7 @@ public class EventControllerTest extends BaseControllerTest {
                 .andExpect(jsonPath("errors[0].defaultMessage").exists())
                 .andExpect(jsonPath("errors[0].code").exists())
                 .andExpect(jsonPath("errors[0].rejectedValue").exists())
-                .andExpect(jsonPath("_links.index").exists()); // 에러가 발생한다면 홈페이지로 가듯 api 도 비슷하게
+                .andExpect(jsonPath("_links.index").exists()) // 에러가 발생한다면 홈페이지로 가듯 api 도 비슷하게
         ;
     }
 
@@ -270,7 +275,29 @@ public class EventControllerTest extends BaseControllerTest {
                 .andExpect(jsonPath("_embedded.eventList[0]._links.self").exists())
                 .andDo(document("query-events"))
         ;
+    }
 
+    @Test
+    @TestDescription("30개의 이벤트를 10개씩 두번째 페이지 조회하기")
+    public void queryEventsWithAuthentication() throws Exception {
+        // Given
+        IntStream.range(0, 30).forEach(this::generateEvent);
+
+        // When & Then
+        this.mockMvc.perform(get("/api/events")
+                .header(HttpHeaders.AUTHORIZATION, getAccessToken())
+                .param("page", "1")
+                .param("size", "10")
+                .param("sort", "name,DESC"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("page").exists())
+                .andExpect(jsonPath("_links.self").exists())
+                .andExpect(jsonPath("_links.profile").exists())
+                .andExpect(jsonPath("_links.create-event").exists())
+                .andExpect(jsonPath("_embedded.eventList[0]._links.self").exists())
+                .andDo(document("query-events"))
+        ;
     }
 
 
@@ -278,7 +305,8 @@ public class EventControllerTest extends BaseControllerTest {
     @TestDescription("기존의 이벤트 하나 조회하기")
     public void getEvent() throws Exception {
         // Given
-        Event event = this.generateEvent(100);
+        Account account = createAccount();
+        Event event = this.generateEvent(100, account);
 
         // When & Then
         this.mockMvc.perform(get("/api/events/{id}", event.getId()))
@@ -303,14 +331,15 @@ public class EventControllerTest extends BaseControllerTest {
     @TestDescription("이벤트를 정상적으로 수정하기")
     public void updateEvent() throws Exception {
         // Given
-        Event event = this.generateEvent(200);
+        Account account = createAccount();
+        Event event = this.generateEvent(200, account);
         EventDto eventDto = modelMapper.map(event, EventDto.class);
         String updateEvent = "Update Event";
         eventDto.setName(updateEvent);
 
         // When & Then
         mockMvc.perform(put("/api/events/{id}", event.getId())
-                .header(HttpHeaders.AUTHORIZATION, getAccessToken())
+                .header(HttpHeaders.AUTHORIZATION, getAccessToken(false))
                 .contentType(MediaType.APPLICATION_JSON_UTF8)
                 .content(objectMapper.writeValueAsString(eventDto))
         )
@@ -374,8 +403,8 @@ public class EventControllerTest extends BaseControllerTest {
         ;
     }
 
-    private Event generateEvent(int i) {
-        Event event = Event.builder()
+    private Event buildEvent(int i) {
+        return Event.builder()
                 .name("Spring" + i)
                 .description("REST API Development with Spring")
                 .beginEnrollmentDateTime(LocalDateTime.of(2020, 11, 23, 14, 21))
@@ -390,6 +419,17 @@ public class EventControllerTest extends BaseControllerTest {
                 .offline(true)
                 .eventStatus(EventStatus.DRAFT)
                 .build();
+    }
+
+    private Event generateEvent(int i, Account account) {
+        Event event = buildEvent(i);
+        event.setManager(account);
+        this.eventRepository.save(event);
+        return event;
+    }
+
+    private Event generateEvent(int i) {
+        Event event = buildEvent(i);
 
         this.eventRepository.save(event);
         return event;

@@ -1,6 +1,8 @@
 package com.example.demorestapi.events;
 
 import com.example.demorestapi.accounts.Account;
+import com.example.demorestapi.accounts.AccountSerializer;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.*;
 
 import javax.persistence.*;
@@ -13,7 +15,7 @@ import java.time.LocalDateTime;
 public class Event {
 
     @Id @GeneratedValue
-    private Integer id;
+    private Long id;
 
     private String name;
     private String description;
@@ -29,8 +31,10 @@ public class Event {
     private boolean offline;
     @Enumerated(EnumType.STRING)
     private EventStatus eventStatus;
-    @ManyToOne
-    private Account account;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JsonSerialize(using = AccountSerializer.class) // manager 를 가져올 때 해당 Serializer 사용
+    private Account manager;
 
     public void update() {
         eventStatus = EventStatus.DRAFT;
